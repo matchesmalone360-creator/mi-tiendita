@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi Tiendita - Ventas e Inventario</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#1f2937}
+header{background:#111827;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:22px}.wrap{max-width:1200px;margin:auto;padding:20px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+nav button,.btn{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;background:#e5e7eb}
+nav button.active,.primary{background:#2563eb;color:white}.danger{background:#dc2626!important;color:#fff}
+section{display:none}.active-section{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 8px #0001}
+.card h3{margin-top:0}.metric{font-size:28px;font-weight:bold;margin-top:8px}
+label{display:block;font-size:13px;font-weight:bold;margin:9px 0 5px}
+input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:7px}
+table{width:100%;border-collapse:collapse;background:white;margin-top:14px}
+th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}
+th{background:#f9fafb}.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
+.total{font-weight:bold;font-size:18px;margin:12px 0}
+.low{color:#b91c1c;font-weight:bold}.ok{color:#047857;font-weight:bold}
+.small{font-size:12px;color:#6b7280}.actions{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:600px){header{display:block}.wrap{padding:12px}th,td{font-size:12px}}
+</style>
+</head>
+<body>
+<header><h1>🏪 Mi Tiendita</h1><span id="today"></span><span id="usuarioActual"></span></header>
+<div class="wrap">
+<div id="loginBox" class="card" style="margin-bottom:14px">
+<h2>🔐 Acceso</h2><div class="formgrid"><div><label>Usuario</label><input id="loginUsuario" value="admin"></div><div><label>Contraseña</label><input id="loginClave" type="password" value="admin123"></div><div><button class="btn primary" onclick="iniciarSesion()">Ingresar</button></div></div><p class="small">Administrador inicial: admin / admin123</p><p id="loginMensaje" class="low"></p></div>
+<div id="sistema" style="display:none">
+<nav>
+<button class="active" onclick="show('inicio',this)">Inicio</button>
+<button onclick="show('ventas',this)">Ventas</button>
+<button onclick="show('inventario',this)">Inventario</button>
+<button onclick="show('egresos',this)">Egresos</button>
+<button onclick="show('reporte',this)">Reporte diario</button><button id="btnUsuarios" onclick="show('usuarios',this)">Usuarios</button><button onclick="cerrarSesion()">Salir</button>
+</nav>
+
+<section id="inicio" class="active-section">
+<div class="grid">
+<div class="card"><div>Ventas de hoy</div><div class="metric" id="mVentas">$0.00</div></div>
+<div class="card"><div>Egresos de hoy</div><div class="metric" id="mEgresos">$0.00</div></div>
+<div class="card"><div>Ganancia/caja neta</div><div class="metric" id="mNeto">$0.00</div></div>
+<div class="card"><div>Productos con stock bajo</div><div class="metric" id="mBajo">0</div></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Resumen de hoy</h3><p id="resumen"></p></div>
+</section>
+
+<section id="ventas">
+<div class="card"><h2>Registrar venta</h2>
+<div class="formgrid">
+<div><label>Artículo</label><select id="ventaProducto"></select></div>
+<div><label>Cantidad</label><input id="ventaCantidad" type="number" min="1" value="1"></div>
+<div><label>Precio unitario</label><input id="ventaPrecio" type="number" min="0" step="0.01"></div>
+<div><button class="btn primary" onclick="registrarVenta()">Registrar venta</button></div>
+</div>
+<div class="total">Total: <span id="ventaTotal">$0.00</span></div>
+<p class="small">El precio se completa automáticamente desde el inventario, pero puedes modificarlo.</p>
+</div>
+<div class="card"><h2>Ventas registradas</h2><div id="tablaVentas"></div></div>
+</section>
+
+<section id="inventario">
+<div class="card"><h2>Agregar / actualizar producto</h2>
+<div class="formgrid">
+<div><label>Artículo</label><input id="prodNombre" placeholder="Ej. Coca Cola 2L"></div>
+<div><label>Categoría</label><input id="prodCat" placeholder="Bebidas"></div>
+<div><label>Stock inicial / actual</label><input id="prodStock" type="number" min="0" value="0"></div>
+<div><label>Precio de compra</label><input id="prodCompra" type="number" min="0" step="0.01"></div>
+<div><label>Precio de venta</label><input id="prodVenta" type="number" min="0" step="0.01"></div>
+<div><label>Stock mínimo</label><input id="prodMin" type="number" min="0" value="2"></div><div><label>Fecha de caducidad</label><input id="prodCaducidad" type="date"></div>
+<div><button class="btn primary" onclick="guardarProducto()">Guardar producto</button></div>
+</div></div>
+<div class="card"><h2>Inventario</h2><div id="tablaInventario"></div></div><div class="card"><h2>⏰ Alertas de caducidad</h2><div id="alertasCaducidad"></div></div>
+</section>
+
+<section id="egresos">
+<div class="card"><h2>Registrar egreso</h2>
+<div class="formgrid">
+<div><label>Concepto</label><input id="egConcepto" placeholder="Ej. Compra de mercadería"></div>
+<div><label>Monto</label><input id="egMonto" type="number" min="0" step="0.01"></div>
+<div><label>Tipo</label><select id="egTipo"><option>Compra de mercadería</option><option>Servicio</option><option>Transporte</option><option>Otro</option></select></div>
+<div><button class="btn primary" onclick="registrarEgreso()">Registrar egreso</button></div>
+</div></div>
+<div class="card"><h2>Egresos registrados</h2><div id="tablaEgresos"></div></div>
+</section>
+
+<section id="reporte">
+<div class="card"><h2>Reporte diario</h2>
+<div class="formgrid"><div><label>Fecha</label><input id="fechaReporte" type="date"></div><div><button class="btn primary" onclick="generarReporte()">Generar reporte</button></div><div><button class="btn" onclick="window.print()">🖨️ Imprimir</button></div></div>
+<div id="reporteContenido" style="margin-top:18px"></div>
+</div>
+</section>
+</div>
+
+<script>
+const KEY='mi_tiendita_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'{"productos":[],"ventas":[],"egresos":[],"usuarios":[{"id":"admin","usuario":"admin","clave":"admin123","rol":"admin"}]}');
+if(!db.usuarios)db.usuarios=[{id:'admin',usuario:'admin',clave:'admin123',rol:'admin'}];
+let sesion=null;
+const money=n=>new Intl.NumberFormat('es-BO',{style:'currency',currency:'BOB'}).format(Number(n)||0);
+const fecha=()=>new Date().toISOString().slice(0,10);
+document.getElementById('today').textContent=new Date().toLocaleDateString('es-BO');
+document.getElementById('fechaReporte').value=fecha();
+
+function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh();}
+function iniciarSesion(){const u=db.usuarios.find(x=>x.usuario===loginUsuario.value.trim()&&x.clave===loginClave.value);if(!u){loginMensaje.textContent='Usuario o contraseña incorrectos.';return}sesion=u;loginBox.style.display='none';sistema.style.display='block';usuarioActual.textContent='👤 '+u.usuario+' ('+u.rol+')';btnUsuarios.style.display=u.rol==='admin'?'inline-block':'none';actualizarPermisos();refresh()}
+function cerrarSesion(){sesion=null;sistema.style.display='none';loginBox.style.display='block';usuarioActual.textContent='';loginUsuario.value='';loginClave.value=''}
+function actualizarPermisos(){const admin=sesion&&sesion.rol==='admin';const visitante=sesion&&sesion.rol==='invitado';document.querySelectorAll('nav button').forEach(b=>{if(['Ventas','Egresos'].includes(b.textContent.trim()))b.style.display=visitante?'none':'inline-block'});document.querySelectorAll('#inventario .danger').forEach(b=>b.style.display=admin?'inline-block':'none');document.querySelectorAll('#inventario input,#inventario select').forEach(x=>x.disabled=!admin);document.querySelector('#inventario .primary').style.display=admin?'inline-block':'none';document.querySelector('#egresos .primary').style.display=admin?'inline-block':'none'}
+function crearUsuario(){if(!sesion||sesion.rol!=='admin')return alert('Solo el administrador puede crear usuarios.');const usuario=usrNombre.value.trim(),clave=usrClave.value,rol=usrRol.value;if(!usuario||!clave)return alert('Completa usuario y contraseña.');if(db.usuarios.some(u=>u.usuario===usuario))return alert('Ese usuario ya existe.');db.usuarios.push({id:crypto.randomUUID(),usuario,clave,rol});save();usrNombre.value='';usrClave.value='';renderUsuarios();alert('Usuario creado correctamente.')}
+function renderUsuarios(){if(!tablaUsuarios)return;tablaUsuarios.innerHTML=db.usuarios.map(u=>`<table><tr><th>Usuario</th><th>Rol</th></tr><tr><td>${esc(u.usuario)}</td><td>${esc(u.rol)}</td></tr></table>`).join('')}
+function diasCaducidad(f){if(!f)return null;return Math.ceil((new Date(f+'T23:59:59')-new Date())/86400000)}
+function estadoCaducidad(p){const d=diasCaducidad(p.caducidad);if(d===null)return '<span class="small">Sin fecha</span>';if(d<0)return '<span class="low">🔴 VENCIDO</span>';if(d<=7)return '<span class="low">🔴 '+d+' días</span>';if(d<=30)return '<span style="color:#b45309;font-weight:bold">🟠 '+d+' días</span>';return '<span class="ok">🟢 OK</span>'}
+
+function show(id,btn){document.querySelectorAll('section').forEach(s=>s.classList.remove('active-section'));document.getElementById(id).classList.add('active-section');document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');refresh();}
+function producto(id){return db.productos.find(p=>p.id===id)}
+function refresh(){
+  const hoy=fecha();
+  const vs=db.ventas.filter(v=>v.fecha===hoy), es=db.egresos.filter(e=>e.fecha===hoy);
+  const ventas=vs.reduce((a,v)=>a+v.total,0), eg=es.reduce((a,e)=>a+e.monto,0);
+  mVentas.textContent=money(ventas);mEgresos.textContent=money(eg);mNeto.textContent=money(ventas-eg);
+  mBajo.textContent=db.productos.filter(p=>p.stock<=p.min).length;renderUsuarios();renderCaducidad();
+  resumen.textContent=`Hoy se registraron ${vs.length} ventas por ${money(ventas)} y ${es.length} egresos por ${money(eg)}.`;
+  ventaProducto.innerHTML=db.productos.map(p=>`<option value="${p.id}">${esc(p.nombre)} (stock: ${p.stock})</option>`).join('');
+  actualizarPrecio();
+  tablaVentas.innerHTML=vs.length?`<table><tr><th>Hora</th><th>Artículo</th><th>Cant.</th><th>Precio</th><th>Total</th></tr>${vs.map(v=>`<tr><td>${v.hora}</td><td>${esc(v.nombre)}</td><td>${v.cantidad}</td><td>${money(v.precio)}</td><td>${money(v.total)}</td></tr>`).join('')}</table>`:'<p>No hay ventas hoy.</p>';
+  tablaEgresos.innerHTML=es.length?`<table><tr><th>Hora</th><th>Concepto</th><th>Tipo</th><th>Monto</th></tr>${es.map(e=>`<tr><td>${e.hora}</td><td>${esc(e.concepto)}</td><td>${esc(e.tipo)}</td><td>${money(e.monto)}</td></tr>`).join('')}</table>`:'<p>No hay egresos hoy.</p>';
+  tablaInventario.innerHTML=db.productos.length?`<table><tr><th>Artículo</th><th>Categoría</th><th>Stock</th><th>Compra</th><th>Venta</th><th>Caducidad</th><th>Estado</th><th>Acciones</th></tr>${db.productos.map(p=>`<tr><td>${esc(p.nombre)}</td><td>${esc(p.cat)}</td><td>${p.stock}</td><td>${money(p.compra)}</td><td>${money(p.venta)}</td><td>${p.caducidad||'Sin fecha'}</td><td>${estadoCaducidad(p)}<br><span class="${p.stock<=p.min?'low':'ok'}">${p.stock<=p.min?'⚠️ STOCK BAJO':'OK'}</span></td><td><button class="btn danger" onclick="eliminarProducto('${p.id}')">Eliminar</button></td></tr>`).join('')}</table>`:'<p>No hay productos registrados.</p>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+ventaProducto.addEventListener('change',actualizarPrecio);ventaCantidad.addEventListener('input',calcularTotal);ventaPrecio.addEventListener('input',calcularTotal);
+function actualizarPrecio(){const p=producto(ventaProducto.value);if(p){ventaPrecio.value=p.venta;calcularTotal()}}
+function calcularTotal(){ventaTotal.textContent=money((Number(ventaCantidad.value)||0)*(Number(ventaPrecio.value)||0))}
+function registrarVenta(){
+  if(!sesion||sesion.rol==='invitado')return alert('Los visitantes tienen acceso solo de consulta.');
+ const p=producto(ventaProducto.value), c=Number(ventaCantidad.value), pr=Number(ventaPrecio.value);
+ if(!p||c<=0||pr<0)return alert('Completa los datos de la venta.');
+ if(c>p.stock)return alert('No hay suficiente stock.');
+ p.stock-=c;const now=new Date();
+ db.ventas.push({id:crypto.randomUUID(),fecha:fecha(),hora:now.toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}),productoId:p.id,nombre:p.nombre,cantidad:c,precio:pr,total:c*pr});
+ save();ventaCantidad.value=1;alert('Venta registrada correctamente.');
+}
+function guardarProducto(){
+ if(!sesion||sesion.rol!=='admin')return alert('Solo el administrador puede modificar el inventario.');
+  const nombre=prodNombre.value.trim(), stock=Number(prodStock.value), compra=Number(prodCompra.value), venta=Number(prodVenta.value), min=Number(prodMin.value), caducidad=prodCaducidad.value;
+ if(!nombre||stock<0||compra<0||venta<0)return alert('Completa correctamente los datos.');
+ const existente=db.productos.find(p=>p.nombre.toLowerCase()===nombre.toLowerCase());
+ if(existente){existente.cat=prodCat.value;existente.stock=stock;existente.compra=compra;existente.venta=venta;existente.min=min;existente.caducidad=caducidad}
+ else db.productos.push({id:crypto.randomUUID(),nombre,cat:prodCat.value,stock,compra,venta,min,caducidad});
+ save();prodNombre.value='';prodCat.value='';prodStock.value=0;prodCompra.value=0;prodVenta.value=0;prodMin.value=2;prodCaducidad.value='';
+ alert('Producto guardado.');
+}
+function eliminarProducto(id){if(confirm('¿Eliminar este producto del inventario?')){db.productos=db.productos.filter(p=>p.id!==id);save()}}
+function registrarEgreso(){
+  if(!sesion||sesion.rol==='invitado')return alert('Los invitados solo pueden consultar.');
+ const concepto=egConcepto.value.trim(), monto=Number(egMonto.value), tipo=egTipo.value;
+ if(!concepto||monto<=0)return alert('Completa concepto y monto.');
+ const now=new Date();db.egresos.push({id:crypto.randomUUID(),fecha:fecha(),hora:now.toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}),concepto,monto,tipo});
+ save();egConcepto.value='';egMonto.value='';alert('Egreso registrado.');
+}
+function renderCaducidad(){if(!alertasCaducidad)return;const venc=db.productos.filter(p=>diasCaducidad(p.caducidad)!==null&&diasCaducidad(p.caducidad)<0),soon=db.productos.filter(p=>{const d=diasCaducidad(p.caducidad);return d!==null&&d>=0&&d<=30});alertasCaducidad.innerHTML='<h3>🔴 Vencidos</h3>'+(venc.map(p=>`<p class="low">${esc(p.nombre)} — ${p.caducidad}</p>`).join('')||'<p>Ninguno</p>')+'<h3>🟠 Próximos a vencer (30 días)</h3>'+(soon.map(p=>`<p>${esc(p.nombre)} — ${p.caducidad} — <b>${diasCaducidad(p.caducidad)} días</b></p>`).join('')||'<p>Ninguno</p>')}
+function generarReporte(){
+ const f=fechaReporte.value, vs=db.ventas.filter(v=>v.fecha===f), es=db.egresos.filter(e=>e.fecha===f);
+ const ingresos=vs.reduce((a,v)=>a+v.total,0), eg=es.reduce((a,e)=>a+e.monto,0);
+ const costo=vs.reduce((a,v)=>{const p=producto(v.productoId);return a+(p?p.compra*v.cantidad:0)},0);
+ const utilidad=ingresos-costo-eg;
+ reporteContenido.innerHTML=`<h3>Reporte del ${new Date(f+'T12:00:00').toLocaleDateString('es-BO')}</h3>
+ <div class="grid"><div class="card"><b>Ingresos por ventas</b><div class="metric">${money(ingresos)}</div></div>
+ <div class="card"><b>Costo estimado de mercadería vendida</b><div class="metric">${money(costo)}</div></div>
+ <div class="card"><b>Egresos</b><div class="metric">${money(eg)}</div></div>
+ <div class="card"><b>Resultado estimado</b><div class="metric">${money(utilidad)}</div></div></div>
+ <h3>Detalle de ventas</h3>${vs.length?`<table><tr><th>Hora</th><th>Artículo</th><th>Cantidad</th><th>Total</th></tr>${vs.map(v=>`<tr><td>${v.hora}</td><td>${esc(v.nombre)}</td><td>${v.cantidad}</td><td>${money(v.total)}</td></tr>`).join('')}</table>`:'<p>Sin ventas.</p>'}
+ <h3>Detalle de egresos</h3>${es.length?`<table><tr><th>Hora</th><th>Concepto</th><th>Tipo</th><th>Monto</th></tr>${es.map(e=>`<tr><td>${e.hora}</td><td>${esc(e.concepto)}</td><td>${esc(e.tipo)}</td><td>${money(e.monto)}</td></tr>`).join('')}</table>`:'<p>Sin egresos.</p>'}`;
+}
+refresh();
+</script>
+</body>
+</html>
